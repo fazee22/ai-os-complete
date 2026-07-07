@@ -1,0 +1,36 @@
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# database
+/prisma/dev.db
+/prisma/dev.db-journal
+
+# env files
+.env
+.env*.local
+
+# uploads (user content, keep folder via .gitkeep)
+/public/uploads/*
+!/public/uploads/.gitkeep
+!/public/uploads/files
+/public/uploads/files/*
+!/public/uploads/files/.gitkeep
+!/public/uploads/kb
+/public/uploads/kb/*
+!/public/uploads/kb/.gitkeep
+
+# misc
+.DS_Store
+*.pem
+npm-debug.log*
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts

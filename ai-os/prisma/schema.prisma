@@ -1,0 +1,277 @@
+// Prisma schema for AI Personal OS
+// Covers Phase 1 (auth) through Phase 5 (knowledge base) in one place
+// so migrations don't need to be redone as later phases are built.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// AUTH (Phase 1)
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  passwordHash  String?
+  image         String?
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+
+  resetTokens PasswordResetToken[]
+
+  chats     Chat[]
+  notes     Note[]
+  tasks     Task[]
+  events    Event[]
+  files     FileAsset[]
+  documents Document[]
+  settings  UserSettings?
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
+}
+
+model UserSettings {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  theme         String   @default("system") // light | dark | system
+  language      String   @default("en")
+  openaiApiKey  String?
+  anthropicApiKey String?
+  groqApiKey    String?
+  preferredProvider String @default("openai") // openai | anthropic | groq
+  notifications Boolean  @default(true)
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+// ---------------------------------------------------------------------------
+// AI CHAT (Phase 2)
+// ---------------------------------------------------------------------------
+
+model Chat {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String   @default("New chat")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@map("chats")
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  chatId    String
+  role      String // user | assistant | system
+  content   String
+  createdAt DateTime @default(now())
+
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+// ---------------------------------------------------------------------------
+// NOTES (Phase 3)
+// ---------------------------------------------------------------------------
+
+model Note {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  content   String
+  pinned    Boolean  @default(false)
+  tags      String   @default("") // comma-separated
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notes")
+}
+
+// ---------------------------------------------------------------------------
+// TASKS (Phase 3)
+// ---------------------------------------------------------------------------
+
+model Task {
+  id          String    @id @default(cuid())
+  userId      String
+  title       String
+  description String?
+  dueDate     DateTime?
+  priority    String    @default("medium") // low | medium | high
+  category    String    @default("general")
+  status      String    @default("todo") // todo | in_progress | done
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subtasks TaskSubtask[]
+
+  @@map("tasks")
+}
+
+model TaskSubtask {
+  id        String  @id @default(cuid())
+  taskId    String
+  title     String
+  done      Boolean @default(false)
+  order     Int     @default(0)
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("task_subtasks")
+}
+
+// ---------------------------------------------------------------------------
+// CALENDAR (Phase 4)
+// ---------------------------------------------------------------------------
+
+model Event {
+  id           String   @id @default(cuid())
+  userId       String
+  title        String
+  description  String?
+  startAt      DateTime
+  endAt        DateTime
+  allDay       Boolean  @default(false)
+  reminderMins Int? // minutes before startAt
+  color        String   @default("primary")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("events")
+}
+
+// ---------------------------------------------------------------------------
+// FILE MANAGER (Phase 4)
+// ---------------------------------------------------------------------------
+
+model FileAsset {
+  id         String   @id @default(cuid())
+  userId     String
+  folderId   String?
+  name       String
+  path       String
+  mimeType   String
+  size       Int
+  aiSummary  String?
+  createdAt  DateTime @default(now())
+
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folder FileFolder? @relation(fields: [folderId], references: [id])
+
+  @@map("file_assets")
+}
+
+model FileFolder {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  parentId  String?
+  createdAt DateTime @default(now())
+
+  files FileAsset[]
+
+  @@map("file_folders")
+}
+
+// ---------------------------------------------------------------------------
+// KNOWLEDGE BASE / RAG (Phase 5)
+// ---------------------------------------------------------------------------
+
+model Document {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  sourceType String  // pdf | text | doc
+  path      String?
+  createdAt DateTime @default(now())
+
+  user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chunks DocumentChunk[]
+
+  @@map("documents")
+}
+
+model DocumentChunk {
+  id         String @id @default(cuid())
+  documentId String
+  content    String
+  chunkIndex Int
+  embedding  String? // JSON-encoded float array (RAG-ready; swap for a vector DB later)
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@map("document_chunks")
+}
