@@ -100,7 +100,7 @@ model UserSettings {
   openaiApiKey  String?
   anthropicApiKey String?
   groqApiKey    String?
-  preferredProvider String @default("openai") // openai | anthropic | groq
+  preferredProvider String @default("groq") // openai | anthropic | groq
   notifications Boolean  @default(true)
   updatedAt     DateTime @updatedAt
 
